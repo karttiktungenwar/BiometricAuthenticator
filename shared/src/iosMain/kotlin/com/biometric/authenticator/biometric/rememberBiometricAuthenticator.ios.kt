@@ -5,6 +5,7 @@ import androidx.compose.runtime.remember
 import com.biometric.authenticator.model.BiometricAuthResult
 import com.biometric.authenticator.model.BiometricStatus
 import com.biometric.authenticator.model.BiometricType
+import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.alloc
@@ -26,7 +27,7 @@ import kotlin.coroutines.resume
 
 class IOSBiometricAuthenticator : BiometricAuthenticator {
 
-    @OptIn(ExperimentalForeignApi::class)
+    @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
     override fun isBiometricAvailable(): BiometricStatus {
         val laContext = LAContext()
         return memScoped {
@@ -99,7 +100,7 @@ class IOSBiometricAuthenticator : BiometricAuthenticator {
                     } else {
                         continuation.resume(
                             BiometricAuthResult.Error(
-                                nsError.localizedDescription ?: "Authentication failed",
+                                nsError.localizedDescription,
                                 nsError.code.toInt()
                             )
                         )
