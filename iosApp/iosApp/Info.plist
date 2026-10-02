@@ -4,5 +4,7 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Biometric authentication is required to secure your data and verify your identity.</string>
 </dict>
 </plist>

@@ -18,6 +18,8 @@ import platform.LocalAuthentication.LABiometryTypeNone
 import platform.LocalAuthentication.LABiometryTypeOpticID
 import platform.LocalAuthentication.LABiometryTypeTouchID
 import platform.LocalAuthentication.LAContext
+import platform.LocalAuthentication.LAErrorBiometryNotAvailable
+import platform.LocalAuthentication.LAErrorBiometryNotEnrolled
 import platform.LocalAuthentication.LAErrorUserCancel
 import platform.LocalAuthentication.LAPolicyDeviceOwnerAuthenticationWithBiometrics
 import kotlin.coroutines.resume
@@ -27,7 +29,7 @@ class IOSBiometricAuthenticator : BiometricAuthenticator {
     @OptIn(ExperimentalForeignApi::class)
     override fun isBiometricAvailable(): BiometricStatus {
         val laContext = LAContext()
-        memScoped {
+        return memScoped {
             val errorPtr = alloc<ObjCObjectVar<NSError?>>()
             val canEvaluate = laContext.canEvaluatePolicy(
                 LAPolicyDeviceOwnerAuthenticationWithBiometrics,
@@ -35,18 +37,37 @@ class IOSBiometricAuthenticator : BiometricAuthenticator {
             )
 
             if (canEvaluate) {
-                val type = getBiometricType()
-                return BiometricStatus.Available(type)
+                val type = getBiometricTypeForContext(laContext)
+                BiometricStatus.Available(type)
             } else {
                 val nsError = errorPtr.value
-                val message = nsError?.localizedDescription ?: "Biometric authentication not available"
-                return BiometricStatus.NotAvailable(message)
+                val errorCode = nsError?.code
+                when (errorCode) {
+                    LAErrorBiometryNotEnrolled -> BiometricStatus.NotEnrolled
+                    LAErrorBiometryNotAvailable -> BiometricStatus.HardwareUnavailable
+                    else -> {
+                        val message = nsError?.localizedDescription ?: "Biometric authentication not available"
+                        BiometricStatus.NotAvailable(message)
+                    }
+                }
             }
         }
     }
 
+    @OptIn(ExperimentalForeignApi::class)
     override fun getBiometricType(): BiometricType {
         val laContext = LAContext()
+        memScoped {
+            val errorPtr = alloc<ObjCObjectVar<NSError?>>()
+            laContext.canEvaluatePolicy(
+                LAPolicyDeviceOwnerAuthenticationWithBiometrics,
+                errorPtr.ptr
+            )
+        }
+        return getBiometricTypeForContext(laContext)
+    }
+
+    private fun getBiometricTypeForContext(laContext: LAContext): BiometricType {
         return when (laContext.biometryType) {
             LABiometryTypeTouchID -> BiometricType.FINGERPRINT
             LABiometryTypeFaceID -> BiometricType.FACE

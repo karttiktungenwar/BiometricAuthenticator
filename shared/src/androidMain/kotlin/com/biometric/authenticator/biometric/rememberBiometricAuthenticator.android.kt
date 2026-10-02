@@ -2,6 +2,8 @@ package com.biometric.authenticator.biometric
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.runtime.Composable
@@ -44,7 +46,18 @@ class AndroidBiometricAuthenticator(
     }
 
     override fun getBiometricType(): BiometricType {
-        return BiometricType.FINGERPRINT
+        val pm = context.packageManager
+        val hasFingerprint = pm.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)
+        val hasFace = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            pm.hasSystemFeature(PackageManager.FEATURE_FACE)
+        } else false
+
+        return when {
+            hasFingerprint && !hasFace -> BiometricType.FINGERPRINT
+            hasFace && !hasFingerprint -> BiometricType.FACE
+            hasFingerprint && hasFace -> BiometricType.FINGERPRINT
+            else -> BiometricType.BIOMETRIC
+        }
     }
 
     override suspend fun authenticate(
